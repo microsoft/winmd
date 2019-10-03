@@ -1,0 +1,23 @@
+﻿<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata minClientVersion="2.5">
+    <id>Microsoft.Windows.WinMD</id>
+    <version>1.0.0.0</version>
+    <title>Windows Metadata Parsing Library</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Microsoft.Windows.WinMD is a pure C++ header library for parsing Windows Metadata (WinMD) files.</description>
+    <releaseNotes></releaseNotes>
+    <tags>native C++ WinRT WinMD nativepackage</tags>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <license type="file">LICENSE</license>
+    <projectUrl>https://github.com/Microsoft/winmd/tree/master/</projectUrl>
+  </metadata>
+  <files>
+    <file src="..\LICENSE"/>
+    <file src="..\src\**\*.h"/>
+    <file src="Microsoft.Windows.WinMD.props"/>
+    <file src="readme.txt"/>
+  </files>
+</package>
