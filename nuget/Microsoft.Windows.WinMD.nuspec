@@ -17,7 +17,7 @@
   <files>
     <file src="..\LICENSE"/>
     <file src="..\src\**\*.h"/>
-    <file src="Microsoft.Windows.WinMD.props"/>
+    <file src="Microsoft.Windows.WinMD.props" target="build\native"/>
     <file src="readme.txt"/>
   </files>
 </package>
