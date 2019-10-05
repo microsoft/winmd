@@ -6,12 +6,12 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
     <PropertyGroup>
-        <WinMDPackageDir>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)))</WinMDPackageDir>
+        <WinMDPackageDir>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)))..\..\</WinMDPackageDir>
     </PropertyGroup>
 
     <ItemDefinitionGroup>
         <ClCompile>
-            <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(WinMDPackageDir)</AdditionalIncludeDirectories>
+            <AdditionalIncludeDirectories>$(WinMDPackageDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
         </ClCompile>
     </ItemDefinitionGroup>
 
