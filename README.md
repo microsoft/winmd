@@ -2,7 +2,11 @@
 
 # C++ Winmd Parser
 
+A parser for winmd files written in C++.
+
 * NuGet package: http://aka.ms/winmd/nuget
+
+The C++ winmd parser is part of the [xlang](https://github.com/microsoft/xlang) family of projects that help developers create APIs that can run on multiple platforms and be used with a variety of languages.
 
 # Contributing
 
