@@ -1,5 +1,9 @@
 [![Build Status](https://dev.azure.com/microsoft/Dart/_apis/build/status/WinMD%20Nuget?branchName=master)](https://dev.azure.com/microsoft/Dart/_build/latest?definitionId=44715&branchName=master)
 
+# C++ Winmd Parser
+
+* NuGet package: http://aka.ms/winmd/nuget
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
