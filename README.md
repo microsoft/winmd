@@ -2,7 +2,7 @@
 
 # C++ Winmd Parser
 
-A parser for winmd files written in C++. The C++ winmd parser powers [C++/WinRT](https://github.com/microsoft/cppwinrt).
+A winmd parser written in C++ and based on the [ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm) standard. This winmd parser powers [C++/WinRT](https://github.com/microsoft/cppwinrt).
 
 * NuGet package: http://aka.ms/winmd/nuget
 
