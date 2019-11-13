@@ -2,7 +2,7 @@
 
 # C++ Winmd Parser
 
-A parser for winmd files written in C++.
+A parser for winmd files written in C++. The C++ winmd parser powers [C++/WinRT](https://github.com/microsoft/cppwinrt).
 
 * NuGet package: http://aka.ms/winmd/nuget
 
