@@ -1,6 +1,6 @@
 [![Build Status](https://dev.azure.com/microsoft/Dart/_apis/build/status/WinMD%20Nuget?branchName=master)](https://dev.azure.com/microsoft/Dart/_build/latest?definitionId=44715&branchName=master)
 
-# C++ Winmd Parser
+# C++ winmd parser
 
 A winmd parser written in C++ and based on the [ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm) standard. This winmd parser powers [C++/WinRT](https://github.com/microsoft/cppwinrt).
 
