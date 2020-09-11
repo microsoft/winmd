@@ -70,17 +70,17 @@ string ToString(const coded_index<TypeDefOrRef>& tdr)
   switch (tdr.type()) {
   case TypeDefOrRef::TypeDef:
   {
-    const auto& td = tdr.TypeDef();
+    const auto td = tdr.TypeDef();
     return GetNamespacePrefix(td.TypeNamespace()) + string(td.TypeName());
   }
   case TypeDefOrRef::TypeRef:
   {
-    const auto& tr = tdr.TypeRef();
+    const auto tr = tdr.TypeRef();
     return GetNamespacePrefix(tr.TypeNamespace()) + string(tr.TypeName());
   }
   case TypeDefOrRef::TypeSpec:
   {
-    const auto& ts = tdr.TypeSpec();
+    const auto ts = tdr.TypeSpec();
     return "TypeSpec";
   }
   default:
@@ -104,18 +104,18 @@ string GetType(const TypeSig& type) {
       break;
     case 1: // coded_index<TypeDefOrRef>
     {
-      const auto& t = std::get<coded_index<TypeDefOrRef>>(valueType);
+      const auto t = std::get<coded_index<TypeDefOrRef>>(valueType);
       return string(ToString(t));
     }
     case 2: // GenericTypeIndex
       break;
     case 3: // GenericTypeInstSig
     {
-      const auto& gt = std::get<GenericTypeInstSig>(valueType);
-      const auto& genericType = gt.GenericType();
-      const auto& outerType = std::string(ToString(genericType));
+      const auto gt = std::get<GenericTypeInstSig>(valueType);
+      const auto genericType = gt.GenericType();
+      const auto outerType = std::string(ToString(genericType));
       stringstream ss;
-      const auto& prettyOuterType = outerType.substr(0, outerType.find('`'));
+      const auto prettyOuterType = outerType.substr(0, outerType.find('`'));
       ss << prettyOuterType << '<';
 
       bool first = true;
@@ -158,16 +158,16 @@ void print_property(const Property& prop) {
 
 void print_method(const MethodDef& method, string_view realName = "") {
   std::string returnType;
-  const auto& signature = method.Signature();
+  const auto signature = method.Signature();
   if (method.Signature().ReturnType()) {
-    const auto& type = method.Signature().ReturnType().Type();
+    const auto type = method.Signature().ReturnType().Type();
     returnType = GetType(type);
   }
   else {
     returnType = "void";
   }
   const auto flags = method.Flags();
-  const auto& name = realName.empty() ? method.Name() : realName;
+  const auto name = realName.empty() ? method.Name() : realName;
   std::cout << "    "
     << (flags.Static() ? "static " : "")
 //    << (flags.Abstract() ? "abstract " : "")
