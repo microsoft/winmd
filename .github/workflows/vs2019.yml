@@ -28,7 +28,10 @@ jobs:
       - name: setup-msbuild
         uses: microsoft/setup-msbuild@v1.0.1
 
-      # Runs a single command using the runners shell
+      - name: nuget restore
+        run: nuget restore
+        working-directory: examples/DumpWinMD
+
       - name: Build example
         run: msbuild /p:Configuration=Debug /p:Platform=${{ matrix.arch }}
         working-directory: examples/DumpWinMD
