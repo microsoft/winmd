@@ -316,7 +316,7 @@ namespace winmd::reader
     inline auto Constant::ValueString() const
     {
         XLANG_ASSERT(Type() == ConstantType::String);
-        return get_blob(2).as_string();
+        return get_blob(2).as_u16string_constant();
     }
 
     inline auto Constant::ValueClass() const
@@ -501,5 +501,51 @@ namespace winmd::reader
     inline auto ClassLayout::Parent() const
     {
         return get_target_row<TypeDef>(2);
+    }
+
+    inline TypeDef NestedClass::NestedType() const
+    {
+        return get_target_row<TypeDef>(0);
+    }
+
+    inline TypeDef NestedClass::EnclosingType() const
+    {
+        return get_target_row<TypeDef>(1);
+    }
+
+    inline auto TypeDef::EnclosingType() const
+    {
+        auto const range = equal_range(get_database().NestedClass, *this);
+        TypeDef result;
+        if (range.first != range.second)
+        {
+            XLANG_ASSERT(range.second - range.first == 1);
+            result = range.first.EnclosingType();
+        }
+        return result;
+    }
+
+    inline auto Field::FieldMarshal() const
+    {
+        auto const range = equal_range(get_database().FieldMarshal, coded_index<HasFieldMarshal>());
+        reader::FieldMarshal result;
+        if (range.first != range.second)
+        {
+            XLANG_ASSERT(range.second - range.first == 1);
+            result = range.first;
+        }
+        return result;
+    }
+
+    inline auto Param::FieldMarshal() const
+    {
+        auto const range = equal_range(get_database().FieldMarshal, coded_index<HasFieldMarshal>());
+        reader::FieldMarshal result;
+        if (range.first != range.second)
+        {
+            XLANG_ASSERT(range.second - range.first == 1);
+            result = range.first;
+        }
+        return result;
     }
 }
