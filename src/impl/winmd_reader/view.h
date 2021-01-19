@@ -272,27 +272,33 @@ namespace winmd::reader
             auto const first{ static_cast<uint8_t const*>(MapViewOfFile(mapping.value, FILE_MAP_READ, 0, 0, 0)) };
             return{ first, first + size.QuadPart };
 #else
-            file_handle file{ open(c_str(path), O_RDONLY, 0) };
+            file_handle file{ open(impl::c_str(path), O_RDONLY, 0) };
             if (!file)
             {
-                throw_invalid("Could not open file '", path, "'");
+                impl::throw_invalid("Could not open file '", path, "'");
             }
 
             struct stat st;
             int ret = fstat(file.value, &st);
             if (ret < 0)
             {
-                throw_invalid("Could not open file '", path, "'");
+                impl::throw_invalid("Could not open file '", path, "'");
             }
             if (!st.st_size)
             {
                 return{};
             }
-
-            auto const first = static_cast<uint8_t const*>(mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, file.value, 0));
+            
+#if defined(__linux__)
+            auto const flags = MAP_PRIVATE | MAP_POPULATE;
+#else
+            auto const flags = MAP_PRIVATE;
+#endif
+            
+            auto const first = static_cast<uint8_t const*>(mmap(nullptr, st.st_size, PROT_READ, flags, file.value, 0));
             if (first == MAP_FAILED)
             {
-                throw_invalid("Could not open file '", path, "'");
+                impl::throw_invalid("Could not open file '", path, "'");
             }
 
             return{ first, first + st.st_size };
