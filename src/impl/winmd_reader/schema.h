@@ -76,6 +76,8 @@ namespace winmd::reader
         auto EventList() const;
         auto MethodImplList() const;
 
+        auto EnclosingType() const;
+
         bool is_enum() const;
         auto get_enum_definition() const;
     };
@@ -179,6 +181,7 @@ namespace winmd::reader
         auto CustomAttribute() const;
         auto Constant() const;
         auto Parent() const;
+        auto FieldMarshal() const;
     };
 
     struct Param : row_base<Param>
@@ -202,6 +205,7 @@ namespace winmd::reader
 
         auto CustomAttribute() const;
         auto Constant() const;
+        auto FieldMarshal() const;
     };
 
     struct InterfaceImpl : row_base<InterfaceImpl>
@@ -222,7 +226,7 @@ namespace winmd::reader
     {
         using row_base::row_base;
 
-        using constant_type = std::variant<bool, char16_t, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string_view, std::nullptr_t>;
+        using constant_type = std::variant<bool, char16_t, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double, std::u16string_view, std::nullptr_t>;
 
         auto Type() const
         {
@@ -255,6 +259,11 @@ namespace winmd::reader
     struct FieldMarshal : row_base<FieldMarshal>
     {
         using row_base::row_base;
+
+        auto Parent() const
+        {
+            return get_coded_index<HasFieldMarshal>(0);
+        }
     };
 
     struct TypeSpec : row_base<TypeSpec>
@@ -577,6 +586,9 @@ namespace winmd::reader
     struct NestedClass : row_base<NestedClass>
     {
         using row_base::row_base;
+
+        TypeDef NestedType() const;
+        TypeDef EnclosingType() const;
     };
 
     struct GenericParam : row_base<GenericParam>
@@ -658,5 +670,25 @@ namespace winmd::reader
     inline bool operator<(MethodSemantics const& left, coded_index<HasSemantics> const& right) noexcept
     {
         return left.Association() < right;
+    }
+
+    inline bool operator<(NestedClass const& left, TypeDef const& right) noexcept
+    {
+        return left.NestedType() < right;
+    }
+
+    inline bool operator<(TypeDef const& left, NestedClass const& right) noexcept
+    {
+        return left < right.NestedType();
+    }
+
+    inline bool operator<(coded_index<HasFieldMarshal> const& left, FieldMarshal const& right) noexcept
+    {
+        return left < right.Parent();
+    }
+
+    inline bool operator<(FieldMarshal const& left, coded_index<HasFieldMarshal> const& right) noexcept
+    {
+        return left.Parent() < right;
     }
 }

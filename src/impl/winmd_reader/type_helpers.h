@@ -30,39 +30,14 @@ namespace winmd::reader
         return get_base_class_namespace_and_name(type) == std::pair(typeNamespace, typeName);
     }
 
-    enum class category
+    inline bool is_nested(TypeDef const& type)
     {
-        interface_type,
-        class_type,
-        enum_type,
-        struct_type,
-        delegate_type
-    };
+        const auto visibility = type.Flags().Visibility();
+        return !(visibility == TypeVisibility::Public || visibility == TypeVisibility::NotPublic);
+    }
 
-    inline category get_category(TypeDef const& type)
+    inline bool is_nested(TypeRef const& type)
     {
-        if (type.Flags().Semantics() == TypeSemantics::Interface)
-        {
-            return category::interface_type;
-        }
-
-        auto const& [extends_namespace, extends_name] = get_base_class_namespace_and_name(type);
-
-        if (extends_name == "Enum"sv && extends_namespace == "System"sv)
-        {
-            return category::enum_type;
-        }
-
-        if (extends_name == "ValueType"sv && extends_namespace == "System"sv)
-        {
-            return category::struct_type;
-        }
-
-        if (extends_name == "MulticastDelegate"sv && extends_namespace == "System"sv)
-        {
-            return category::delegate_type;
-        }
-
-        return category::class_type;
+        return type.ResolutionScope().type() == ResolutionScope::TypeRef;
     }
 }
