@@ -35,34 +35,7 @@ namespace winmd::reader
             {
                 for (auto&&[name, type] : members.types)
                 {
-                    switch (get_category(type))
-                    {
-                    case category::interface_type:
-                        members.interfaces.push_back(type);
-                        continue;
-                    case category::class_type:
-                        if (extends_type(type, "System"sv, "Attribute"sv))
-                        {
-                            members.attributes.push_back(type);
-                            continue;
-                        }
-                        members.classes.push_back(type);
-                        continue;
-                    case category::enum_type:
-                        members.enums.push_back(type);
-                        continue;
-                    case category::struct_type:
-                        if (get_attribute(type, "Windows.Foundation.Metadata"sv, "ApiContractAttribute"sv))
-                        {
-                            members.contracts.push_back(type);
-                            continue;
-                        }
-                        members.structs.push_back(type);
-                        continue;
-                    case category::delegate_type:
-                        members.delegates.push_back(type);
-                        continue;
-                    }
+                    add_type_to_members(type, members);
                 }
             }
         }
@@ -165,6 +138,30 @@ namespace winmd::reader
             remove(members.delegates, name);
         }
 
+        void add_database(std::string_view const& file)
+        {
+            auto& db = m_databases.emplace_back(file, this);
+            for (auto&& type : db.TypeDef)
+            {
+                if (type.Flags().value == 0 || is_nested(type))
+                {
+                    continue;
+                }
+
+                auto& ns = m_namespaces[type.TypeNamespace()];
+                auto[iter, inserted] = ns.types.try_emplace(type.TypeName(), type);
+                if (inserted)
+                {
+                    add_type_to_members(type, ns);
+                }
+            }
+
+            for (auto&& row : db.NestedClass)
+            {
+                m_nested_types[row.EnclosingType()].push_back(row.NestedType());
+            }
+        }
+
         std::vector<TypeDef> const& nested_types(TypeDef const& enclosing_type) const
         {
             auto it = m_nested_types.find(enclosing_type);
@@ -194,6 +191,38 @@ namespace winmd::reader
         using namespace_type = std::pair<std::string_view const, namespace_members> const&;
 
     private:
+
+        void add_type_to_members(TypeDef const& type, namespace_members& members)
+        {
+            switch (get_category(type))
+            {
+            case category::interface_type:
+                members.interfaces.push_back(type);
+                return;
+            case category::class_type:
+                if (extends_type(type, "System"sv, "Attribute"sv))
+                {
+                    members.attributes.push_back(type);
+                    return;
+                }
+                members.classes.push_back(type);
+                return;
+            case category::enum_type:
+                members.enums.push_back(type);
+                return;
+            case category::struct_type:
+                if (get_attribute(type, "Windows.Foundation.Metadata"sv, "ApiContractAttribute"sv))
+                {
+                    members.contracts.push_back(type);
+                    return;
+                }
+                members.structs.push_back(type);
+                return;
+            case category::delegate_type:
+                members.delegates.push_back(type);
+                return;
+            }
+        }
 
         std::list<database> m_databases;
         std::map<std::string_view, namespace_members> m_namespaces;
