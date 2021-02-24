@@ -138,6 +138,8 @@ namespace winmd::reader
             remove(members.delegates, name);
         }
 
+        // This won't invalidate any existing database or row_base (e.g. TypeDef) instances
+        // However, it may invalidate iterators and references to namespace_members, because those are stored in std::vector
         void add_database(std::string_view const& file)
         {
             auto& db = m_databases.emplace_back(file, this);
