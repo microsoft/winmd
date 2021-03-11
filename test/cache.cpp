@@ -3,7 +3,7 @@
 
 using namespace winmd::reader;
 
-TEST_CASE("cache_add_invalidate")
+std::filesystem::path get_local_winmd_path()
 {
     std::array<char, 260> local{};
 
@@ -13,7 +13,12 @@ TEST_CASE("cache_add_invalidate")
     ExpandEnvironmentStringsA("%windir%\\SysNative\\WinMetadata", local.data(), static_cast<uint32_t>(local.size()));
 #endif
 
-    std::filesystem::path winmd_dir = local.data();
+    return local.data();
+}
+
+TEST_CASE("cache_add_invalidate")
+{
+    std::filesystem::path winmd_dir = get_local_winmd_path();
     auto file_path = winmd_dir;
     file_path.append("Windows.Foundation.winmd");
 
@@ -36,15 +41,7 @@ TEST_CASE("cache_add_invalidate")
 
 TEST_CASE("cache_add")
 {
-    std::array<char, 260> local{};
-
-#ifdef _WIN64
-    ExpandEnvironmentStringsA("%windir%\\System32\\WinMetadata", local.data(), static_cast<uint32_t>(local.size()));
-#else
-    ExpandEnvironmentStringsA("%windir%\\SysNative\\WinMetadata", local.data(), static_cast<uint32_t>(local.size()));
-#endif
-
-    std::filesystem::path winmd_dir = local.data();
+    std::filesystem::path winmd_dir = get_local_winmd_path();
     auto file_path = winmd_dir;
     file_path.append("Windows.Foundation.winmd");
 
@@ -65,15 +62,7 @@ TEST_CASE("cache_add")
 
 TEST_CASE("cache_add_duplicate")
 {
-    std::array<char, 260> local{};
-
-#ifdef _WIN64
-    ExpandEnvironmentStringsA("%windir%\\System32\\WinMetadata", local.data(), static_cast<uint32_t>(local.size()));
-#else
-    ExpandEnvironmentStringsA("%windir%\\SysNative\\WinMetadata", local.data(), static_cast<uint32_t>(local.size()));
-#endif
-
-    std::filesystem::path winmd_dir = local.data();
+    std::filesystem::path winmd_dir = get_local_winmd_path();
     auto file_path = winmd_dir;
     file_path.append("Windows.Foundation.winmd");
 
@@ -86,4 +75,86 @@ TEST_CASE("cache_add_duplicate")
 
     TypeDef IStringable2 = c.find("Windows.Foundation", "IStringable");
     REQUIRE(IStringable == IStringable2);
+}
+
+bool caches_equal(cache const& lhs, cache const& rhs)
+{
+    if (lhs.namespaces().size() != rhs.namespaces().size())
+        return false;
+
+    auto compare_typedef_names = [](TypeDef const& lhs, TypeDef const& rhs)
+    {
+        return lhs.TypeName() == rhs.TypeName() && lhs.TypeNamespace() == rhs.TypeNamespace();
+    };
+
+    auto compare_members = [compare_typedef_names](std::vector<TypeDef> const& lhs, std::vector<TypeDef> const& rhs)
+    {
+        return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), compare_typedef_names);
+    };
+
+    for (auto iter1 = lhs.namespaces().begin(), iter2 = rhs.namespaces().begin();
+        iter1 != lhs.namespaces().end() && iter2 != rhs.namespaces().end();
+        ++iter1, ++iter2)
+    {
+        if (iter1->first != iter2->first)
+            return false;
+
+        if (!(compare_members(iter1->second.attributes, iter2->second.attributes)) &&
+            compare_members(iter1->second.classes, iter2->second.classes) &&
+            compare_members(iter1->second.contracts, iter2->second.contracts) &&
+            compare_members(iter1->second.delegates, iter2->second.delegates) &&
+            compare_members(iter1->second.enums, iter2->second.enums) &&
+            compare_members(iter1->second.interfaces, iter2->second.interfaces) &&
+            compare_members(iter1->second.structs, iter2->second.structs))
+            return false;
+
+
+        if (!std::equal(iter1->second.types.begin(), iter1->second.types.end(),
+            iter2->second.types.begin(), iter2->second.types.end(),
+            [](auto const& lhs, auto const& rhs)
+            {
+                return lhs.first == rhs.first;
+            }))
+            return false;
+    }
+    return true;
+}
+
+TEST_CASE("cache_filter")
+{
+    std::filesystem::path winmd_dir = get_local_winmd_path();
+    auto file_path = winmd_dir;
+    file_path.append("Windows.Foundation.winmd");
+
+    cache const unfiltered(file_path.string());
+
+    {
+        cache allow_all(file_path.string(), [](TypeDef const&) { return true; });
+        REQUIRE(caches_equal(unfiltered, allow_all));
+    }
+
+    {
+        cache allow_none(file_path.string(), [](TypeDef const&) { return false; });
+        REQUIRE(allow_none.namespaces().empty());
+    }
+
+    {
+        cache allow_winrt(file_path.string(), [](TypeDef const& type)
+            {
+                return type.Flags().WindowsRuntime();
+            });
+        REQUIRE(caches_equal(unfiltered, allow_winrt));
+    }
+
+    {
+        auto const type_namespace = "Windows.Foundation";
+        auto const type_name = "HResult";
+        cache filter_hresult(file_path.string(), [type_namespace, type_name](TypeDef const& type)
+            {
+                return !(type.TypeName() == type_name && type.TypeNamespace() == type_namespace);
+            });
+
+        REQUIRE(unfiltered.find(type_namespace, type_name));
+        REQUIRE(!filter_hresult.find(type_namespace, type_name));
+    }
 }
