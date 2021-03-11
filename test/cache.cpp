@@ -60,6 +60,32 @@ TEST_CASE("cache_add")
     REQUIRE(JsonValue.TypeNamespace() == "Windows.Data.Json");
 }
 
+TEST_CASE("cache_add_filter")
+{
+    std::filesystem::path winmd_dir = get_local_winmd_path();
+    auto file_path = winmd_dir;
+    file_path.append("Windows.Foundation.winmd");
+
+    cache c(file_path.string());
+
+    TypeDef JsonValue = c.find("Windows.Data.Json", "JsonValue");
+    REQUIRE(!JsonValue);
+
+    file_path = winmd_dir;
+    file_path.append("Windows.Data.winmd");
+    c.add_database(file_path.string(), [](TypeDef const& type)
+        {
+            return !(type.TypeNamespace() == "Windows.Data.Json" && type.TypeName() == "JsonArray");
+        });
+
+    JsonValue = c.find("Windows.Data.Json", "JsonValue");
+    REQUIRE(!!JsonValue);
+    REQUIRE(JsonValue.TypeName() == "JsonValue");
+    REQUIRE(JsonValue.TypeNamespace() == "Windows.Data.Json");
+
+    REQUIRE(!c.find("Windows.Data.Json", "JsonArray"));
+}
+
 TEST_CASE("cache_add_duplicate")
 {
     std::filesystem::path winmd_dir = get_local_winmd_path();
