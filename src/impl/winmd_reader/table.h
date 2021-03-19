@@ -289,7 +289,7 @@ namespace winmd::reader
         reference operator--() noexcept
         {
             --m_index;
-            return *this;
+            return static_cast<reference>(*this);
         }
 
         value_type operator--(int) noexcept
