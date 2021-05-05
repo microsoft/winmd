@@ -7,8 +7,8 @@ namespace winmd::reader
         cache(cache const&) = delete;
         cache& operator=(cache const&) = delete;
 
-        template<typename C, typename T = typename C::value_type>
-        explicit cache(C const& files)
+        template<typename C, typename T = typename C::value_type, typename TypeFilter>
+        explicit cache(C const& files, TypeFilter filter)
         {
             for (auto&& file : files)
             {
@@ -16,7 +16,7 @@ namespace winmd::reader
 
                 for (auto&& type : db.TypeDef)
                 {
-                    if (type.Flags().value == 0 || is_nested(type))
+                    if (type.Flags().value == 0 || is_nested(type) || !filter(type))
                     {
                         continue;
                     }
@@ -40,9 +40,27 @@ namespace winmd::reader
             }
         }
 
-        explicit cache(std::string const& file) : cache{ std::vector<std::string>{ file } }
+        template<typename C, typename T = typename C::value_type>
+        explicit cache(C const& files) : cache{ files, default_type_filter{} }
         {
         }
+
+        template <typename TypeFilter>
+        explicit cache(std::string const& file, TypeFilter filter) : cache{ std::vector<std::string>{ file }, filter }
+        {
+        }
+
+        explicit cache(std::string const& file) : cache{ std::vector<std::string>{ file }, default_type_filter{} }
+        {
+        }
+
+        struct default_type_filter
+        {
+            bool operator()(TypeDef const&) const noexcept
+            {
+                return true;
+            }
+        };
 
         TypeDef find(std::string_view const& type_namespace, std::string_view const& type_name) const noexcept
         {
@@ -140,12 +158,13 @@ namespace winmd::reader
 
         // This won't invalidate any existing database or row_base (e.g. TypeDef) instances
         // However, it may invalidate iterators and references to namespace_members, because those are stored in std::vector
-        void add_database(std::string_view const& file)
+        template <typename TypeFilter>
+        void add_database(std::string_view const& file, TypeFilter filter)
         {
             auto& db = m_databases.emplace_back(file, this);
             for (auto&& type : db.TypeDef)
             {
-                if (type.Flags().value == 0 || is_nested(type))
+                if (type.Flags().value == 0 || is_nested(type) || !filter(type))
                 {
                     continue;
                 }
@@ -162,6 +181,11 @@ namespace winmd::reader
             {
                 m_nested_types[row.EnclosingType()].push_back(row.NestedType());
             }
+        }
+
+        void add_database(std::string_view const& file)
+        {
+            add_database(file, default_type_filter{});
         }
 
         std::vector<TypeDef> const& nested_types(TypeDef const& enclosing_type) const
