@@ -3,7 +3,6 @@
 #if defined(_WIN32)
 #include <windows.h>
 #include <shlwapi.h>
-#include <xmllite.h>
 #else
 #include <sys/stat.h>
 #include <fcntl.h>
