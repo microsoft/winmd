@@ -20,7 +20,7 @@ namespace winmd::reader
 
             std::sort(m_rules.begin(), m_rules.end(), [](auto const& lhs, auto const& rhs)
             {
-                return std::pair{ lhs.first.size(), lhs.second } > std::pair{ rhs.first.size(), rhs.second };
+                return std::pair{ lhs.first.size(), !lhs.second } > std::pair{ rhs.first.size(), !rhs.second };
             });
         }
 
