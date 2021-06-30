@@ -38,3 +38,15 @@ TEST_CASE("filter_excludes_same_length")
     REQUIRE(!f.includes("N.N3.T"));
     REQUIRE(!f.includes("N.N4.T"));
 }
+
+TEST_CASE("filter_exclude_include_precedence")
+{
+    std::vector<std::string> include = { "N.T" };
+    std::vector<std::string> exclude = { "N.T" };
+
+    filter f{ include, exclude };
+
+    REQUIRE(!f.empty());
+
+    REQUIRE(!f.includes("N.T"));
+}
