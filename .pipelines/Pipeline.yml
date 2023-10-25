@@ -1,0 +1,118 @@
+variables:
+  MajorVersion: 1
+  MinorVersion: 0
+
+name: $(MajorVersion).$(MinorVersion).$(date:yyMMdd)$(rev:.r)
+trigger: none
+
+resources:
+  repositories:
+  - repository: 1ESPipelineTemplates
+    type: git
+    name: 1ESPipelineTemplates/1ESPipelineTemplates
+    ref: refs/tags/release
+
+extends:
+  template: v1/1ES.Official.PipelineTemplate.yml@1ESPipelineTemplates
+  parameters:
+    customBuildTags:
+    - 1ES.PT.ViaStartRight
+    pool:
+      name: Azure-Pipelines-1ESPT-ExDShared
+      image: windows-2022
+      os: windows
+    sdl:
+      sourceAnalysisPool:
+        name: Azure-Pipelines-1ESPT-ExDShared
+        image: windows-2022
+        os: windows
+
+    stages:
+    - stage: BuildNuGet
+      displayName: Build WinMD NuGet
+      jobs:
+      - job: Test
+        displayName: Test Library
+        strategy:
+          maxParallel: 10
+          matrix:
+            x64_Debug:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'debug'
+            x86_Debug:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'debug'
+            x64_Release:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'release'
+            x86_Release:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'release'
+        steps:
+        - checkout: self
+          clean: true
+          persistCredentials: true
+        - task: VSBuild@1
+          displayName: Build Tests
+          inputs:
+            platform: $(BuildPlatform)
+            configuration: $(BuildConfiguration)
+            clean: $(BuildParameters.clean)
+        - task: CmdLine@2
+          displayName: Run Tests
+          inputs:
+            script: test\$(BuildPlatform)\$(BuildConfiguration)\winmd.exe -o TEST-$(Build.BuildNumber).xml -r junit
+        - task: PublishTestResults@2
+          displayName: Publish Results
+          inputs:
+            failTaskOnFailedTests: true
+
+      - job: NuGet
+        displayName: Build NuGet
+        dependsOn: Test
+        templateContext:
+          outputs:
+          - output: nuget
+            displayName: 'NuGet push'
+            packagesToPush: $(Build.ArtifactStagingDirectory)/**/*.nupkg
+            packageParentPath: '$(Build.ArtifactStagingDirectory)'
+            publishVstsFeed: WinMD
+            nuGetFeedType: internal
+          - output: pipelineArtifact
+            targetPath: $(Build.ArtifactStagingDirectory)
+            artifactName: Publish
+        steps:
+        - checkout: self
+          clean: true
+          persistCredentials: true
+        - task: NuGetCommand@2
+          displayName: NuGet pack
+          inputs:
+            command: pack
+            searchPatternPack: nuget/Microsoft.Windows.WinMD.nuspec
+            configurationToPack: Release
+            versioningScheme: byBuildNumber
+        - task: EsrpCodeSigning@2
+          displayName: ESRP CodeSigning
+          inputs:
+            ConnectedServiceName: 81cc6790-027c-4ef3-928d-65e8b96a691a
+            FolderPath: $(Build.ArtifactStagingDirectory)
+            Pattern: '*.nupkg'
+            signConfigType: inlineSignParams
+            inlineOperation: |
+              [
+                {
+                  "keyCode": "CP-401405",
+                  "operationSetCode": "NuGetSign",
+                  "parameters": [],
+                  "toolName": "sign",
+                  "toolVersion": "6.2.9304.0"
+                },
+                {
+                  "keyCode": "CP-401405",
+                  "operationSetCode": "NuGetVerify",
+                  "parameters": [ ],
+                  "toolName": "sign",
+                  "toolVersion": "1.0"
+                }
+              ]
