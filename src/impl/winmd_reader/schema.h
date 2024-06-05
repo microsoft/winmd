@@ -418,6 +418,11 @@ namespace winmd::reader
         using row_base::row_base;
 
         auto CustomAttribute() const;
+
+        auto Name() const
+        {
+            return get_string(0);
+        }
     };
 
     struct ImplMap : row_base<ImplMap>
