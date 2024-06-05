@@ -428,6 +428,13 @@ namespace winmd::reader
     struct ImplMap : row_base<ImplMap>
     {
         using row_base::row_base;
+
+        auto Name() const
+        {
+            return get_string(2);
+        }
+
+        auto Module() const;
     };
 
     struct FieldRVA : row_base<FieldRVA>

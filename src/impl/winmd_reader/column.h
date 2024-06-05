@@ -241,6 +241,11 @@ namespace winmd::reader
         return get_target_row<TypeDef>(0);
     }
 
+    inline auto ImplMap::Module() const
+    {
+        return get_target_row<ModuleRef>(3);
+    }
+
     inline auto Constant::ValueBoolean() const
     {
         XLANG_ASSERT(Type() == ConstantType::Boolean);
