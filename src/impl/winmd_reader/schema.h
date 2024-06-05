@@ -435,6 +435,11 @@ namespace winmd::reader
         }
 
         auto Module() const;
+
+        auto Member() const
+        {
+            return get_coded_index<MemberForwarded>(1);
+        }
     };
 
     struct FieldRVA : row_base<FieldRVA>
