@@ -34,6 +34,14 @@ namespace winmd::reader
         auto MemberRef() const;
     };
 
+    template <> struct typed_index<MemberForwarded> : index_base<MemberForwarded>
+    {
+        using index_base<MemberForwarded>::index_base;
+        
+        auto Field() const;
+        auto MethodDef() const;
+    };
+
     template <> struct typed_index<ResolutionScope> : index_base<ResolutionScope>
     {
         using index_base<ResolutionScope>::index_base;

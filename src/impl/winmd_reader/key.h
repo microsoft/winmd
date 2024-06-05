@@ -54,6 +54,14 @@ namespace winmd::reader
         return get_row<reader::MemberRef>();
     }
 
+    inline auto typed_index<MemberForwarded>::Field() const {
+        return get_row<reader::Field>();
+    }
+
+    inline auto typed_index<MemberForwarded>::MethodDef() const {
+        return get_row<reader::MethodDef>();
+    }
+
     inline auto typed_index<ResolutionScope>::Module() const
     {
         return get_row<reader::Module>();
