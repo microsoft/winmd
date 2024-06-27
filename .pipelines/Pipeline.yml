@@ -1,6 +1,9 @@
 variables:
-  MajorVersion: 1
-  MinorVersion: 0
+- group: XlangSigning
+- name: MajorVersion
+  value: 1
+- name: MinorVersion
+  value: 0
 
 name: $(MajorVersion).$(MinorVersion).$(date:yyMMdd)$(rev:.r)
 trigger: none
@@ -92,10 +95,15 @@ extends:
             searchPatternPack: nuget/Microsoft.Windows.WinMD.nuspec
             configurationToPack: Release
             versioningScheme: byBuildNumber
-        - task: EsrpCodeSigning@2
+        - task: EsrpCodeSigning@5
           displayName: ESRP CodeSigning
           inputs:
-            ConnectedServiceName: 81cc6790-027c-4ef3-928d-65e8b96a691a
+            ConnectedServiceName: $(SigningServiceName)
+            AppRegistrationClientId: $(SigningAppId)
+            AppRegistrationTenantId: $(SigningTenantId)
+            AuthAKVName: $(SigningAKVName)
+            AuthCertName: $(SigningAuthCertName)
+            AuthSignCertName: $(SigningSignCertName)
             FolderPath: $(Build.ArtifactStagingDirectory)
             Pattern: '*.nupkg'
             signConfigType: inlineSignParams
