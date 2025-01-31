@@ -96,6 +96,14 @@ namespace winmd::reader
     {
         GenericTypeInstSig(table_base const* table, byte_view& data);
 
+        GenericTypeInstSig(coded_index<TypeDefOrRef> type, std::vector<TypeSig>&& args)
+            : m_type(type)
+            , m_generic_arg_count(static_cast<uint32_t>(args.size()))
+            , m_generic_args(std::move(args))
+        {
+            // If constructing directly, probably don't care about m_class_or_value
+        }
+
         ElementType ClassOrValueType() const noexcept
         {
             return m_class_or_value;
@@ -117,7 +125,7 @@ namespace winmd::reader
         }
 
     private:
-        ElementType m_class_or_value;
+        ElementType m_class_or_value{};
         coded_index<TypeDefOrRef> m_type;
         uint32_t m_generic_arg_count;
         std::vector<TypeSig> m_generic_args;
@@ -213,6 +221,12 @@ namespace winmd::reader
             }
         }
 
+        explicit TypeSig(value_type&& arg)
+            : m_type(std::move(arg))
+        {
+            // If constructing directly, probably don't actually care about m_element_type. Simply populate m_type
+        }
+
         value_type const& Type() const noexcept
         {
             return m_type;
@@ -256,11 +270,11 @@ namespace winmd::reader
         }
 
         static value_type ParseType(table_base const* table, byte_view& data);
-        bool m_is_szarray;
-        bool m_is_array;
-        int m_ptr_count;
+        bool m_is_szarray{};
+        bool m_is_array{};
+        int m_ptr_count{};
         std::vector<CustomModSig> m_cmod;
-        ElementType m_element_type;
+        ElementType m_element_type{};
         value_type m_type;
         uint32_t m_array_rank{};
         std::vector<uint32_t> m_array_sizes;
