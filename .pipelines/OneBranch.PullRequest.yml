@@ -80,7 +80,6 @@ extends:
 
       - job: NuGet
         displayName: Pack NuGet
-        dependsOn: Test
         pool:
           type: windows
         variables:
