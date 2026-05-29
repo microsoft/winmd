@@ -30,6 +30,9 @@ extends:
       enabled: false
     globalSdl:
       isNativeCode: true
+      tsa:
+        enabled: false
+        useDynamicRouting: true
 
     stages:
     - stage: Build

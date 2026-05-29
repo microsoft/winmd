@@ -36,6 +36,7 @@ extends:
         enabled: true
       tsa:
         enabled: true
+        useDynamicRouting: true
 
     stages:
     - stage: Build
