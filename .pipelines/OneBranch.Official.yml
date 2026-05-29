@@ -11,7 +11,7 @@ trigger: none
 variables:
   MajorVersion: 1
   MinorVersion: 0
-  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2019/vse2022:latest'
 
 name: $(MajorVersion).$(MinorVersion).$(date:yyMMdd)$(rev:.r)
 
