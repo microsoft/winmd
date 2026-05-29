@@ -96,13 +96,7 @@ namespace winmd::reader
     {
         GenericTypeInstSig(table_base const* table, byte_view& data);
 
-        GenericTypeInstSig(coded_index<TypeDefOrRef> type, std::vector<TypeSig>&& args)
-            : m_type(type)
-            , m_generic_arg_count(static_cast<uint32_t>(args.size()))
-            , m_generic_args(std::move(args))
-        {
-            // If constructing directly, probably don't care about m_class_or_value
-        }
+        GenericTypeInstSig(coded_index<TypeDefOrRef> type, std::vector<TypeSig>&& args);
 
         ElementType ClassOrValueType() const noexcept
         {
@@ -537,6 +531,13 @@ namespace winmd::reader
         {
             m_generic_args.emplace_back(table, data);
         }
+    }
+
+    inline GenericTypeInstSig::GenericTypeInstSig(coded_index<TypeDefOrRef> type, std::vector<TypeSig>&& args)
+        : m_type(type)
+        , m_generic_arg_count(static_cast<uint32_t>(args.size()))
+        , m_generic_args(std::move(args))
+    {
     }
 
     inline TypeSig::value_type TypeSig::ParseType(table_base const* table, byte_view& data)
