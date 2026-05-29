@@ -1,0 +1,72 @@
+#################################################################################
+#                    OneBranch Pipelines - Pull Request                         #
+# Documentation:  https://aka.ms/obpipelines                                   #
+# Yaml Schema:    https://aka.ms/obpipelines/yaml/schema                       #
+# Retail Tasks:   https://aka.ms/obpipelines/tasks                             #
+# Support:        https://aka.ms/onebranchsup                                  #
+#################################################################################
+
+trigger: none
+
+pr:
+  branches:
+    include:
+    - master
+
+variables:
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: OneBranch.Pipelines/GovernedTemplates
+      ref: refs/heads/main
+
+extends:
+  template: v2/OneBranch.NonOfficial.CrossPlat.yml@templates
+  parameters:
+    cloudvault:
+      enabled: false
+    globalSdl:
+      isNativeCode: true
+
+    stages:
+    - stage: Build
+      displayName: Build & Test WinMD
+      jobs:
+      - job: Test
+        displayName: Test Library
+        pool:
+          type: windows
+        strategy:
+          maxParallel: 10
+          matrix:
+            x64_Debug:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'debug'
+            x86_Debug:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'debug'
+            x64_Release:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'release'
+            x86_Release:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'release'
+        variables:
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+        steps:
+        - task: VSBuild@1
+          displayName: Build Tests
+          inputs:
+            platform: $(BuildPlatform)
+            configuration: $(BuildConfiguration)
+        - task: CmdLine@2
+          displayName: Run Tests
+          inputs:
+            script: test\$(BuildPlatform)\$(BuildConfiguration)\winmd.exe -o TEST-$(Build.BuildNumber).xml -r junit
+        - task: PublishTestResults@2
+          displayName: Publish Results
+          inputs:
+            failTaskOnFailedTests: true

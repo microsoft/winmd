@@ -1,0 +1,95 @@
+#################################################################################
+#                      OneBranch Pipelines - Official                           #
+# Documentation:  https://aka.ms/obpipelines                                   #
+# Yaml Schema:    https://aka.ms/obpipelines/yaml/schema                       #
+# Retail Tasks:   https://aka.ms/obpipelines/tasks                             #
+# Support:        https://aka.ms/onebranchsup                                  #
+#################################################################################
+
+trigger: none
+
+variables:
+  MajorVersion: 1
+  MinorVersion: 0
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2022/vse2022:latest'
+
+name: $(MajorVersion).$(MinorVersion).$(date:yyMMdd)$(rev:.r)
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: OneBranch.Pipelines/GovernedTemplates
+      ref: refs/heads/main
+
+extends:
+  template: v2/OneBranch.Official.CrossPlat.yml@templates
+  parameters:
+    cloudvault:
+      enabled: false
+    nugetPublishing:
+      feeds:
+      - name: WinMD
+    globalSdl:
+      isNativeCode: true
+      asyncSdl:
+        enabled: true
+      tsa:
+        enabled: true
+
+    stages:
+    - stage: Build
+      displayName: Build & Test WinMD
+      jobs:
+      - job: Test
+        displayName: Test Library
+        pool:
+          type: windows
+        strategy:
+          maxParallel: 10
+          matrix:
+            x64_Debug:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'debug'
+            x86_Debug:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'debug'
+            x64_Release:
+              BuildPlatform: 'x64'
+              BuildConfiguration: 'release'
+            x86_Release:
+              BuildPlatform: 'x86'
+              BuildConfiguration: 'release'
+        variables:
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+        steps:
+        - task: VSBuild@1
+          displayName: Build Tests
+          inputs:
+            platform: $(BuildPlatform)
+            configuration: $(BuildConfiguration)
+        - task: CmdLine@2
+          displayName: Run Tests
+          inputs:
+            script: test\$(BuildPlatform)\$(BuildConfiguration)\winmd.exe -o TEST-$(Build.BuildNumber).xml -r junit
+        - task: PublishTestResults@2
+          displayName: Publish Results
+          inputs:
+            failTaskOnFailedTests: true
+
+      - job: NuGet
+        displayName: Pack NuGet
+        dependsOn: Test
+        pool:
+          type: windows
+        variables:
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+        steps:
+        - task: NuGetCommand@2
+          displayName: NuGet pack
+          inputs:
+            command: pack
+            searchPatternPack: nuget/Microsoft.Windows.WinMD.nuspec
+            configurationToPack: Release
+            versioningScheme: byBuildNumber
+            packDestination: $(ob_outputDirectory)
