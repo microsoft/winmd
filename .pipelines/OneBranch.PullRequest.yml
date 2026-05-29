@@ -70,3 +70,20 @@ extends:
           displayName: Publish Results
           inputs:
             failTaskOnFailedTests: true
+
+      - job: NuGet
+        displayName: Pack NuGet
+        dependsOn: Test
+        pool:
+          type: windows
+        variables:
+          ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+        steps:
+        - task: NuGetCommand@2
+          displayName: NuGet pack
+          inputs:
+            command: pack
+            searchPatternPack: nuget/Microsoft.Windows.WinMD.nuspec
+            configurationToPack: Release
+            versioningScheme: byBuildNumber
+            packDestination: $(ob_outputDirectory)

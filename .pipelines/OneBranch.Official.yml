@@ -78,12 +78,13 @@ extends:
             failTaskOnFailedTests: true
 
       - job: NuGet
-        displayName: Pack NuGet
+        displayName: Pack & Sign NuGet
         dependsOn: Test
         pool:
           type: windows
         variables:
           ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+          ob_signing_setup_enabled: true
         steps:
         - task: NuGetCommand@2
           displayName: NuGet pack
@@ -93,3 +94,10 @@ extends:
             configurationToPack: Release
             versioningScheme: byBuildNumber
             packDestination: $(ob_outputDirectory)
+        - task: onebranch.pipeline.signing@1
+          displayName: Sign NuGet package
+          inputs:
+            command: sign
+            signing_profile: external_distribution
+            files_to_sign: '*.nupkg'
+            search_root: $(ob_outputDirectory)
