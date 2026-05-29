@@ -65,6 +65,7 @@ extends:
               BuildConfiguration: 'release'
         variables:
           ob_outputDirectory: '$(Build.SourcesDirectory)\out'
+          ob_artifactBaseName: 'drop_Test_$(BuildPlatform)_$(BuildConfiguration)'
         steps:
         - task: VSBuild@1
           displayName: Build Tests
@@ -82,7 +83,6 @@ extends:
 
       - job: NuGet
         displayName: Pack & Sign NuGet
-        dependsOn: Test
         pool:
           type: windows
         variables:
