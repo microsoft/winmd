@@ -23,6 +23,9 @@ namespace winmd::impl
 
 namespace winmd::reader
 {
+    inline constexpr uint16_t max_pe_section_count = 100;
+    static_assert(sizeof(impl::image_section_header) <= (UINT32_MAX / max_pe_section_count), "Unexpected PE section header size");
+
     struct cache;
 
     struct database
@@ -33,6 +36,21 @@ namespace winmd::reader
         static bool is_database(std::string_view const& path)
         {
             file_view file{ path };
+            auto const fits = [&file](uint32_t const offset, uint64_t const length) noexcept
+            {
+                uint64_t const available = file.size();
+                return offset <= available && length <= (available - offset);
+            };
+            auto const try_checked_add = [](uint32_t const left, uint32_t const right, uint32_t& result) noexcept
+            {
+                if (left > UINT32_MAX - right)
+                {
+                    return false;
+                }
+
+                result = left + right;
+                return true;
+            };
 
             if (file.size() < sizeof(impl::image_dos_header))
             {
@@ -46,35 +64,60 @@ namespace winmd::reader
                 return false;
             }
 
-            if (file.size() < (dos.e_lfanew + sizeof(impl::image_nt_headers32)))
+            if (dos.e_lfanew < 0)
             {
                 return false;
             }
 
-            auto pe = file.as<impl::image_nt_headers32>(dos.e_lfanew);
+            auto const pe_offset = static_cast<uint32_t>(dos.e_lfanew);
+            if (!fits(pe_offset, sizeof(impl::image_nt_headers32)))
+            {
+                return false;
+            }
 
-            if (pe.FileHeader.NumberOfSections == 0 || pe.FileHeader.NumberOfSections > 100)
+            auto pe = file.as<impl::image_nt_headers32>(pe_offset);
+
+            if (pe.FileHeader.NumberOfSections == 0 || pe.FileHeader.NumberOfSections > max_pe_section_count)
             {
                 return false;
             }
             
-            impl::image_section_header const* sections{};
+            uint32_t section_table_offset{};
             uint32_t com_virtual_address{};
             if (pe.OptionalHeader.Magic == 0x10B) // PE32
             {
                 com_virtual_address = pe.OptionalHeader.DataDirectory[14].VirtualAddress; // IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR
-                sections = &file.as<impl::image_section_header>(dos.e_lfanew + sizeof(impl::image_nt_headers32));
+                if (!try_checked_add(pe_offset, static_cast<uint32_t>(sizeof(impl::image_nt_headers32)), section_table_offset))
+                {
+                    return false;
+                }
             }
             else if (pe.OptionalHeader.Magic == 0x20B) // PE32+
             {
-                auto pe_plus = file.as<impl::image_nt_headers32plus>(dos.e_lfanew);
+                if (!fits(pe_offset, sizeof(impl::image_nt_headers32plus)))
+                {
+                    return false;
+                }
+
+                auto pe_plus = file.as<impl::image_nt_headers32plus>(pe_offset);
                 com_virtual_address = pe_plus.OptionalHeader.DataDirectory[14].VirtualAddress; // IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR
-                sections = &file.as<impl::image_section_header>(dos.e_lfanew + sizeof(impl::image_nt_headers32plus));
+                if (!try_checked_add(pe_offset, static_cast<uint32_t>(sizeof(impl::image_nt_headers32plus)), section_table_offset))
+                {
+                    return false;
+                }
             }
             else
             {
-                impl::throw_invalid("Invalid optional header magic value");
+                return false;
             }
+
+            auto const section_table_bytes = pe.FileHeader.NumberOfSections * sizeof(impl::image_section_header);
+            if (!fits(section_table_offset, section_table_bytes))
+            {
+                return false;
+            }
+
+            auto sections = file.as_array<impl::image_section_header>(section_table_offset, pe.FileHeader.NumberOfSections);
             auto sections_end = sections + pe.FileHeader.NumberOfSections;
             auto section = section_from_rva(sections, sections_end, com_virtual_address);
 
@@ -83,7 +126,16 @@ namespace winmd::reader
                 return false;
             }
 
-            auto offset = offset_from_rva(*section, com_virtual_address);
+            uint32_t offset{};
+            if (!try_offset_from_rva(*section, com_virtual_address, offset))
+            {
+                return false;
+            }
+
+            if (!fits(offset, sizeof(impl::image_cor20_header)))
+            {
+                return false;
+            }
 
             auto cli = file.as<impl::image_cor20_header>(offset);
 
@@ -99,7 +151,15 @@ namespace winmd::reader
                 return false;
             }
 
-            offset = offset_from_rva(*section, cli.MetaData.VirtualAddress);
+            if (!try_offset_from_rva(*section, cli.MetaData.VirtualAddress, offset))
+            {
+                return false;
+            }
+
+            if (!fits(offset, sizeof(uint32_t)))
+            {
+                return false;
+            }
 
             if (file.as<uint32_t>(offset) != 0x424a5342)
             {
@@ -235,30 +295,60 @@ namespace winmd::reader
                 impl::throw_invalid("Invalid DOS signature");
             }
 
-            auto pe = m_view.as<impl::image_nt_headers32>(dos.e_lfanew);
+            if (dos.e_lfanew < 0)
+            {
+                impl::throw_invalid("Invalid PE header offset");
+            }
 
-            if (pe.FileHeader.NumberOfSections == 0 || pe.FileHeader.NumberOfSections > 100)
+            auto const fits = [this](uint32_t const offset, uint64_t const length) noexcept
+            {
+                uint64_t const available = m_view.size();
+                return offset <= available && length <= (available - offset);
+            };
+
+            auto const pe_offset = static_cast<uint32_t>(dos.e_lfanew);
+            if (!fits(pe_offset, sizeof(impl::image_nt_headers32)))
+            {
+                impl::throw_invalid("Invalid PE header offset");
+            }
+
+            auto pe = m_view.as<impl::image_nt_headers32>(pe_offset);
+
+            if (pe.FileHeader.NumberOfSections == 0 || pe.FileHeader.NumberOfSections > max_pe_section_count)
             {
                 impl::throw_invalid("Invalid PE section count");
             }
 
-            impl::image_section_header const* sections{};
+            uint32_t section_table_offset{};
             uint32_t com_virtual_address{};
             if (pe.OptionalHeader.Magic == 0x10B) // PE32
             {
                 com_virtual_address = pe.OptionalHeader.DataDirectory[14].VirtualAddress; // IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR
-                sections = &m_view.as<impl::image_section_header>(dos.e_lfanew + sizeof(impl::image_nt_headers32));
+                section_table_offset = checked_add(pe_offset, static_cast<uint32_t>(sizeof(impl::image_nt_headers32)), "Invalid section table offset");
             }
             else if (pe.OptionalHeader.Magic == 0x20B) // PE32+
             {
-                auto pe_plus = m_view.as<impl::image_nt_headers32plus>(dos.e_lfanew);
+                if (!fits(pe_offset, sizeof(impl::image_nt_headers32plus)))
+                {
+                    impl::throw_invalid("Invalid PE header offset");
+                }
+
+                auto pe_plus = m_view.as<impl::image_nt_headers32plus>(pe_offset);
                 com_virtual_address = pe_plus.OptionalHeader.DataDirectory[14].VirtualAddress; // IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR
-                sections = &m_view.as<impl::image_section_header>(dos.e_lfanew + sizeof(impl::image_nt_headers32plus));
+                section_table_offset = checked_add(pe_offset, static_cast<uint32_t>(sizeof(impl::image_nt_headers32plus)), "Invalid section table offset");
             }
             else
             {
                 impl::throw_invalid("Invalid optional header magic value");
             }
+
+            auto const section_table_bytes = pe.FileHeader.NumberOfSections * sizeof(impl::image_section_header);
+            if (!fits(section_table_offset, section_table_bytes))
+            {
+                impl::throw_invalid("PE section table extends past end of file");
+            }
+
+            auto sections = m_view.as_array<impl::image_section_header>(section_table_offset, pe.FileHeader.NumberOfSections);
             auto sections_end = sections + pe.FileHeader.NumberOfSections;
             auto section = section_from_rva(sections, sections_end, com_virtual_address);
 
@@ -267,7 +357,11 @@ namespace winmd::reader
                 impl::throw_invalid("PE section containing CLI header not found");
             }
 
-            auto offset = offset_from_rva(*section, com_virtual_address);
+            uint32_t offset{};
+            if (!try_offset_from_rva(*section, com_virtual_address, offset))
+            {
+                impl::throw_invalid("Invalid CLI header offset");
+            }
 
             auto cli = m_view.as<impl::image_cor20_header>(offset);
 
@@ -283,45 +377,57 @@ namespace winmd::reader
                 impl::throw_invalid("PE section containing CLI metadata not found");
             }
 
-            offset = offset_from_rva(*section, cli.MetaData.VirtualAddress);
+            if (!try_offset_from_rva(*section, cli.MetaData.VirtualAddress, offset))
+            {
+                impl::throw_invalid("Invalid CLI metadata offset");
+            }
 
             if (m_view.as<uint32_t>(offset) != 0x424a5342)
             {
                 impl::throw_invalid("CLI metadata magic signature not found");
             }
 
-            auto version_length = m_view.as<uint32_t>(offset + 12);
-            auto stream_count = m_view.as<uint16_t>(offset + version_length + 18);
-            auto view = m_view.seek(offset + version_length + 20);
+            auto version_length = m_view.as<uint32_t>(checked_add(offset, 12, "Invalid metadata version length offset"));
+            auto const stream_header_base = checked_add(offset, version_length, "Invalid metadata version length");
+            auto stream_count = m_view.as<uint16_t>(checked_add(stream_header_base, 18, "Invalid stream count offset"));
+            auto view = m_view.seek(checked_add(stream_header_base, 20, "Invalid stream headers offset"));
             byte_view tables;
 
             for (uint16_t i{}; i < stream_count; ++i)
             {
                 auto stream = view.as<stream_range>();
-                auto name = view.as<std::array<char, 12>>(8);
+                auto stream_name = view.as<std::array<char, 12>>(8);
+                auto const stream_name_end = std::find(stream_name.begin(), stream_name.end(), '\0');
+                if (stream_name_end == stream_name.end())
+                {
+                    impl::throw_invalid("Missing metadata stream name terminator");
+                }
 
-                if (name.data() == "#Strings"sv)
+                std::string_view const name{ stream_name.data(), static_cast<size_t>(stream_name_end - stream_name.begin()) };
+                auto const stream_data_offset = checked_add(offset, stream.offset, "Invalid metadata stream offset");
+
+                if (name == "#Strings"sv)
                 {
-                    m_strings = m_view.sub(offset + stream.offset, stream.size);
+                    m_strings = m_view.sub(stream_data_offset, stream.size);
                 }
-                else if (name.data() == "#Blob"sv)
+                else if (name == "#Blob"sv)
                 {
-                    m_blobs = m_view.sub(offset + stream.offset, stream.size);
+                    m_blobs = m_view.sub(stream_data_offset, stream.size);
                 }
-                else if (name.data() == "#GUID"sv)
+                else if (name == "#GUID"sv)
                 {
-                    m_guids = m_view.sub(offset + stream.offset, stream.size);
+                    m_guids = m_view.sub(stream_data_offset, stream.size);
                 }
-                else if (name.data() == "#~"sv)
+                else if (name == "#~"sv)
                 {
-                    tables = m_view.sub(offset + stream.offset, stream.size);
+                    tables = m_view.sub(stream_data_offset, stream.size);
                 }
-                else if (name.data() != "#US"sv)
+                else if (name != "#US"sv)
                 {
                     impl::throw_invalid("Unknown metadata stream");
                 }
 
-                view = view.seek(stream_offset(name.data()));
+                view = view.seek(stream_offset(name));
             }
 
             std::bitset<8> const heap_sizes{ tables.as<uint8_t>(6) };
@@ -510,17 +616,55 @@ namespace winmd::reader
             return static_cast<uint32_t>(8 + name.size() + padding);
         }
 
+        static uint32_t checked_add(uint32_t const left, uint32_t const right, char const* const error)
+        {
+            if (left > UINT32_MAX - right)
+            {
+                impl::throw_invalid(error);
+            }
+
+            return left + right;
+        }
+
         static impl::image_section_header const* section_from_rva(impl::image_section_header const* const first, impl::image_section_header const* const last, uint32_t const rva) noexcept
         {
             return std::find_if(first, last, [rva](auto&& section) noexcept
             {
-                return rva >= section.VirtualAddress && rva < section.VirtualAddress + section.Misc.VirtualSize;
+                if (rva < section.VirtualAddress)
+                {
+                    return false;
+                }
+
+                return (rva - section.VirtualAddress) < section.Misc.VirtualSize;
             });
         }
 
-        static uint32_t offset_from_rva(impl::image_section_header const& section, uint32_t const rva) noexcept
+        static bool try_offset_from_rva(impl::image_section_header const& section, uint32_t const rva, uint32_t& offset) noexcept
         {
-            return rva - section.VirtualAddress + section.PointerToRawData;
+            if (rva < section.VirtualAddress)
+            {
+                return false;
+            }
+
+            auto const delta = rva - section.VirtualAddress;
+            if (section.PointerToRawData > UINT32_MAX - delta)
+            {
+                return false;
+            }
+
+            offset = section.PointerToRawData + delta;
+            return true;
+        }
+
+        static uint32_t offset_from_rva(impl::image_section_header const& section, uint32_t const rva)
+        {
+            uint32_t offset{};
+            if (!try_offset_from_rva(section, rva, offset))
+            {
+                impl::throw_invalid("Invalid PE section offset");
+            }
+
+            return offset;
         }
 
         std::vector<uint8_t> m_buffer;
