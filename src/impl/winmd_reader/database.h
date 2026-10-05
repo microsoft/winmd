@@ -24,7 +24,6 @@ namespace winmd::impl
 namespace winmd::reader
 {
     inline constexpr uint16_t max_pe_section_count = 100;
-    static_assert(sizeof(impl::image_section_header) <= (UINT32_MAX / max_pe_section_count), "Unexpected PE section header size");
 
     struct cache;
 
@@ -111,6 +110,7 @@ namespace winmd::reader
                 return false;
             }
 
+            static_assert(sizeof(impl::image_section_header) <= (UINT32_MAX / max_pe_section_count), "Unexpected PE section header size");
             auto const section_table_bytes = pe.FileHeader.NumberOfSections * sizeof(impl::image_section_header);
             if (!fits(section_table_offset, section_table_bytes))
             {
@@ -342,6 +342,7 @@ namespace winmd::reader
                 impl::throw_invalid("Invalid optional header magic value");
             }
 
+            static_assert(sizeof(impl::image_section_header) <= (UINT32_MAX / max_pe_section_count), "Unexpected PE section header size");
             auto const section_table_bytes = pe.FileHeader.NumberOfSections * sizeof(impl::image_section_header);
             if (!fits(section_table_offset, section_table_bytes))
             {
