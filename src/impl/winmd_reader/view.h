@@ -74,11 +74,6 @@ namespace winmd::reader
             return static_cast<uint32_t>(end() - begin());
         }
 
-        uint64_t size64() const noexcept
-        {
-            return static_cast<uint64_t>(end() - begin());
-        }
-
         explicit operator bool() const noexcept
         {
             return begin() != end();
@@ -141,7 +136,7 @@ namespace winmd::reader
 
         void check_range(uint32_t const offset, uint64_t const length) const
         {
-            uint64_t const available = size64();
+            uint64_t const available = size();
 
             if (offset > available || length > (available - offset))
             {
@@ -269,6 +264,11 @@ namespace winmd::reader
                 impl::throw_invalid("Could not determine file size for '", path, "'");
             }
 
+            if (size.QuadPart > UINT32_MAX)
+            {
+                impl::throw_invalid("File too large '", path, "'");
+            }
+
             if (!size.QuadPart)
             {
                 return{};
@@ -301,6 +301,12 @@ namespace winmd::reader
             {
                 impl::throw_invalid("Could not open file '", path, "'");
             }
+
+            if (st.st_size > UINT32_MAX)
+            {
+                impl::throw_invalid("File too large '", path, "'");
+            }
+
             if (!st.st_size)
             {
                 return{};
