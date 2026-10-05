@@ -74,9 +74,14 @@ namespace winmd::reader
             return static_cast<uint32_t>(end() - begin());
         }
 
+        uint64_t size64() const noexcept
+        {
+            return static_cast<uint64_t>(end() - begin());
+        }
+
         explicit operator bool() const noexcept
         {
-            return size() > 0;
+            return begin() != end();
         }
 
         byte_view seek(uint32_t const offset) const
@@ -136,7 +141,7 @@ namespace winmd::reader
 
         void check_range(uint32_t const offset, uint64_t const length) const
         {
-            uint64_t const available = size();
+            uint64_t const available = size64();
 
             if (offset > available || length > (available - offset))
             {

@@ -37,7 +37,7 @@ namespace winmd::reader
             file_view file{ path };
             auto const fits = [&file](uint32_t const offset, uint64_t const length) noexcept
             {
-                uint64_t const available = file.size();
+                uint64_t const available = file.size64();
                 return offset <= available && length <= (available - offset);
             };
             auto const try_checked_add = [](uint32_t const left, uint32_t const right, uint32_t& result) noexcept
@@ -302,7 +302,7 @@ namespace winmd::reader
 
             auto const fits = [this](uint32_t const offset, uint64_t const length) noexcept
             {
-                uint64_t const available = m_view.size();
+                uint64_t const available = m_view.size64();
                 return offset <= available && length <= (available - offset);
             };
 
