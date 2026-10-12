@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <array>
 #include <bitset>
+#include <cstdint>
 #include <fstream>
 #include <future>
 #include <list>

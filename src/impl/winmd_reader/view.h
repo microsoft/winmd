@@ -76,32 +76,32 @@ namespace winmd::reader
 
         explicit operator bool() const noexcept
         {
-            return size() > 0;
+            return begin() != end();
         }
 
         byte_view seek(uint32_t const offset) const
         {
-            check_available(offset);
+            check_range(offset, 0);
             return{ m_first + offset, m_last };
         }
 
         byte_view sub(uint32_t const offset, uint32_t const size) const
         {
-            check_available(offset + size);
+            check_range(offset, size);
             return{ m_first + offset, m_first + offset + size };
         }
 
         template <typename T>
         T const& as(uint32_t const offset = 0) const
         {
-            check_available(offset + sizeof(T));
+            check_range(offset, sizeof(T));
             return reinterpret_cast<T const&>(*(m_first + offset));
         }
 
         std::string_view as_string(uint32_t const offset = 0) const
         {
             static_assert(sizeof(uint8_t) == 1);
-            check_available(offset + 1);
+            check_range(offset, 1);
             auto const length = as<uint8_t>(offset);
             if (length == 0)
             {
@@ -113,7 +113,7 @@ namespace winmd::reader
             }
             else
             {
-                check_available(offset + 1 + length);
+                check_range(offset, 1u + length);
                 return { reinterpret_cast<char const*>(m_first + offset + 1), length };
             }
         }
@@ -126,15 +126,19 @@ namespace winmd::reader
         template <typename T>
         auto as_array(uint32_t const offset, uint32_t const count) const
         {
-            check_available(offset + count * sizeof(T));
+            uint64_t byte_count = count;
+            byte_count *= sizeof(T);
+            check_range(offset, byte_count);
             return reinterpret_cast<T const*>(m_first + offset);
         }
 
     private:
 
-        void check_available(uint32_t const offset) const
+        void check_range(uint32_t const offset, uint64_t const length) const
         {
-            if (m_first + offset > m_last)
+            uint64_t const available = size();
+
+            if (offset > available || length > (available - offset))
             {
                 impl::throw_invalid("Buffer too small");
             }
@@ -255,7 +259,15 @@ namespace winmd::reader
             }
 
             LARGE_INTEGER size{};
-            GetFileSizeEx(file.value, &size);
+            if (!GetFileSizeEx(file.value, &size))
+            {
+                impl::throw_invalid("Could not determine file size for '", path, "'");
+            }
+
+            if (size.QuadPart > UINT32_MAX)
+            {
+                impl::throw_invalid("File too large '", path, "'");
+            }
 
             if (!size.QuadPart)
             {
@@ -264,12 +276,17 @@ namespace winmd::reader
 
             handle mapping{ CreateFileMappingW(file.value, nullptr, PAGE_READONLY, 0, 0, nullptr) };
 
-            if (!mapping)
+            if (mapping.value == nullptr)
             {
                 impl::throw_invalid("Could not open file '", path, "'");
             }
 
             auto const first{ static_cast<uint8_t const*>(MapViewOfFile(mapping.value, FILE_MAP_READ, 0, 0, 0)) };
+            if (!first)
+            {
+                impl::throw_invalid("Could not map file '", path, "'");
+            }
+
             return{ first, first + size.QuadPart };
 #else
             file_handle file{ open(impl::c_str(path), O_RDONLY, 0) };
@@ -284,6 +301,12 @@ namespace winmd::reader
             {
                 impl::throw_invalid("Could not open file '", path, "'");
             }
+
+            if (st.st_size > UINT32_MAX)
+            {
+                impl::throw_invalid("File too large '", path, "'");
+            }
+
             if (!st.st_size)
             {
                 return{};

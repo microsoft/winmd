@@ -38,7 +38,7 @@ namespace winmd::reader
             XLANG_ASSERT(data_size == 1 || data_size == 2 || data_size == 4 || data_size == 8);
             XLANG_ASSERT(data_size <= sizeof(T));
 
-            if (row > size())
+            if (row >= size())
             {
                 impl::throw_invalid("Invalid row index");
             }
@@ -113,15 +113,21 @@ namespace winmd::reader
             if (f) { m_columns[5] = { static_cast<uint8_t>(a + b + c + d + e), f }; }
         }
 
-        void set_data(byte_view& view) noexcept
+        void set_data(byte_view& view)
         {
             XLANG_ASSERT(!m_data);
 
             if (m_row_count)
             {
                 XLANG_ASSERT(m_row_size);
+                if (m_row_size > (UINT32_MAX / m_row_count))
+                {
+                    impl::throw_invalid("Metadata table too large");
+                }
+
+                auto const byte_count = m_row_count * m_row_size;
                 m_data = view.begin();
-                view = view.seek(m_row_count * m_row_size);
+                view = view.seek(byte_count);
             }
         }
 
